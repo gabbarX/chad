@@ -45,6 +45,14 @@ export interface LoginAttempt extends RpcTarget {
   wait(): Promise<string>;
 }
 
+/** Input for PublicApi.submitDemoRequest(). All fields are attacker-controlled; validated server-side. */
+export interface DemoRequestInput {
+  name: string;
+  email: string;
+  company: string;
+  message?: string;
+}
+
 /** Public API exposed to the internet. */
 export interface PublicApi extends RpcTarget {
   /** Confirms that the RPC connection can round-trip without performing application work. */
@@ -124,6 +132,13 @@ export interface PublicApi extends RpcTarget {
    * authentication required (knowing the ID is sufficient, since a blueprint is "just data").
    */
   getBlueprint(id: string): Promise<BlueprintPublicInfo | null>;
+
+  /**
+   * Submits a "request a demo" form from the public marketing page. No authentication required.
+   * Delivers an email notification to the deployment operator if SEND_EMAIL is configured;
+   * otherwise logs the submission and resolves successfully.
+   */
+  submitDemoRequest(request: DemoRequestInput): Promise<void>;
 
   /**
    * Download a blueprint as a `.gadget` archive stream. The archive contains only
