@@ -44,3 +44,6 @@ wrangler.dev.jsonc
 .dev.vars.*
 **/.dev.vars
 **/.dev.vars.*
+
+# Subagent-driven-development scratch workspace (per-plan ledgers, briefs, review packages)
+.superpowers/
