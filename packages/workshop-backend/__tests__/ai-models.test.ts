@@ -563,10 +563,27 @@ describe("getModel OpenRouter routing", () => {
     expect(body.reasoning).toEqual({ effort: "medium" });
   }, 15000);
 
-  it("turns reasoning off when thinking is disabled", async () => {
+  it("omits reasoning entirely when thinking is disabled, never disabling it", async () => {
+    // Models behind OpenRouter that mandate reasoning reject `reasoning: {effort: "none"}` with
+    // `400 Reasoning is mandatory for this endpoint and cannot be disabled`, and pi's catalog
+    // marks almost none of them, so "none" is never safe to send. Omitting the field leaves the
+    // provider default in place, which every model accepts. This is the thinking-off path used by
+    // completeText() for titles, binding names and compaction summaries.
     const body = JSON.parse((await captureRequest(directHandle(), { thinking: false })).body);
-    expect(body.reasoning).toEqual({ effort: "none" });
+    expect(body.reasoning).toBeUndefined();
   }, 15000);
+
+  it("marks thinking-off unsupported so pi cannot request it", () => {
+    // pi omits the reasoning field only when the level is explicitly null (its documented meaning
+    // for an unsupported level); anything else makes it send an effort value.
+    expect(directHandle().model.thinkingLevelMap?.off).toBeNull();
+  });
+
+  it("keeps the catalog's other thinking levels intact", () => {
+    // gpt-5.4 maps xhigh; overriding `off` must not discard the rest of the map.
+    const handle = directHandle({ model: "openai/gpt-5.4" });
+    expect(handle.model.thinkingLevelMap).toMatchObject({ xhigh: "xhigh", off: null });
+  });
 
   it("sends no reasoning field for a model that cannot reason", async () => {
     const handle = directHandle({ model: NON_REASONING_MODEL });
@@ -611,8 +628,10 @@ describe("getModel OpenRouter routing", () => {
     expect(request.headers.get("authorization")).toBeNull();
     expect(request.headers.get("x-api-key")).toBeNull();
 
-    // Gateway routing must not cost the model its reasoning configuration.
+    // Gateway routing must not cost the model its reasoning configuration, nor its protection
+    // against pi requesting a disable.
     expect(JSON.parse(request.body).reasoning).toEqual({ effort: "medium" });
+    expect(handle.model.thinkingLevelMap?.off).toBeNull();
   }, 15000);
 
   it("is unavailable in AI Gateway mode unless the operator enables it", () => {
