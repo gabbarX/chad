@@ -91,6 +91,17 @@
   //   "not_found_handling": "single-page-application",
   //   "run_worker_first": ["/api", "/api/*", "/blueprint-screenshot/*"]
   // },
+
+  // Uncomment and configure to let the public marketing page's "Request a demo" form deliver
+  // email notifications. Requires Email Routing to be enabled on your zone and the destination
+  // address verified (Cloudflare dashboard -> Email -> Email Routing). Without this, submissions
+  // are still accepted and validated, but only logged (see src/demo-request.ts).
+  // "send_email": [
+  //   { "name": "SEND_EMAIL" }
+  // ],
+  // "vars": {
+  //   "DEMO_REQUEST_DESTINATION": "you@yourdomain.com"
+  // },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,

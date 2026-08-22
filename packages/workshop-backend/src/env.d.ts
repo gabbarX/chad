@@ -45,6 +45,13 @@ declare global {
       >;
       FRONTEND_ERROR_RATE_LIMITER?: RateLimit;
 
+      // Optional email delivery for the public marketing page's "Request a demo" form (see
+      // src/demo-request.ts). Both SEND_EMAIL and DEMO_REQUEST_DESTINATION must be present before
+      // notifications are sent; otherwise submissions are still validated, just logged instead.
+      SEND_EMAIL?: SendEmail;
+      DEMO_REQUEST_DESTINATION?: string;
+      DEMO_REQUEST_RATE_LIMITER?: RateLimit;
+
       // The Browser Run binding (BROWSER) used to render Gadget exports is intentionally NOT
       // redeclared here: wrangler's generated types make it required, and TypeScript 7 rejects
       // weakening it to optional in a merged augmentation. Self-hosted deployments may omit the

@@ -217,6 +217,37 @@ Each gatekeeper package contains instructions for how to set it up:
 * [Spotify](packages/gatekeeper-spotify/README.md)
 * [ZoomInfo API](packages/gatekeeper-zoominfo/README.md)
 
+#### Configuring the "Request a demo" form
+
+The public marketing page includes a "Request a demo" form, backed by `PublicApi.submitDemoRequest`
+in `packages/workshop-backend`. Submissions are always validated server-side, and are IP
+rate-limited when a `DEMO_REQUEST_RATE_LIMITER` binding is configured; whether they also generate
+an email notification is controlled separately by an optional `send_email` binding.
+
+By default, `SEND_EMAIL` isn't bound, so submissions are accepted and simply logged (see
+`packages/workshop-backend/src/demo-request.ts`) rather than dropped. To have them emailed to your
+team instead, uncomment and configure the `send_email` block near the bottom of
+`packages/workshop-backend/wrangler.jsonc`:
+
+```jsonc
+"send_email": [
+  { "name": "SEND_EMAIL" }
+],
+"vars": {
+  "DEMO_REQUEST_DESTINATION": "you@yourdomain.com"
+}
+```
+
+This requires [Email Routing](https://developers.cloudflare.com/email-routing/) to be enabled on
+your zone, with the destination address verified in the Cloudflare dashboard under
+Email -> Email Routing. You'll also need `PUBLIC_BASE_URL` set (used elsewhere for OAuth redirect
+URIs), since it's what determines the domain notification emails are sent from.
+
+Scope note: the only anti-spam measure here is IP-based rate limiting plus field validation — there
+is no CAPTCHA or similar challenge. That's a deliberate, minimal starting point. If spam becomes a
+problem, [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/) is the natural next
+step, but it isn't built yet.
+
 ## Developing
 
 When developing, you'll want to run the front-end and back-end as two separate commands in two terminals:
