@@ -84,14 +84,33 @@ export async function submitDemoRequest(
   // is the deployment's own public origin (also used to build OAuth redirect URIs elsewhere), so
   // it's the only value in scope that's both configured out-of-band and guaranteed to name a
   // domain the operator owns.
+  //
+  // Both branches below (missing, and malformed) are operator misconfiguration -- SEND_EMAIL and
+  // DEMO_REQUEST_DESTINATION were deliberately set, but the deployment's own base URL wasn't
+  // provided or isn't a valid URL. Per this endpoint's degrade-gracefully posture (matching the
+  // "SEND_EMAIL not configured" branch above), that must not surface an internal error to the
+  // public, unauthenticated caller or drop the submission outright; it logs at `warn` (not `info`,
+  // like the expected-default branch above) since this specific case is a genuine misconfiguration.
   if (!env.PUBLIC_BASE_URL) {
-    throw new Error(
-      "SEND_EMAIL and DEMO_REQUEST_DESTINATION are configured, but PUBLIC_BASE_URL is not set; " +
-      "cannot determine a sending domain for demo-request email notifications.");
+    logger.warn("demo request received but no sending domain is configured; logging only", {
+      event: "demo_request.logged_only", email: parsed.email, company: parsed.company,
+    });
+    return;
+  }
+
+  let sendingHostname: string;
+  try {
+    sendingHostname = new URL(env.PUBLIC_BASE_URL).hostname;
+  } catch (error) {
+    logger.warn(
+      "demo request received but PUBLIC_BASE_URL is not a valid URL; logging only", {
+        event: "demo_request.logged_only", email: parsed.email, company: parsed.company, error,
+      });
+    return;
   }
 
   await env.SEND_EMAIL.send({
-    from: `no-reply@${new URL(env.PUBLIC_BASE_URL).hostname}`,
+    from: `no-reply@${sendingHostname}`,
     to: env.DEMO_REQUEST_DESTINATION,
     replyTo: parsed.email,
     subject: `Demo request: ${parsed.company}`,

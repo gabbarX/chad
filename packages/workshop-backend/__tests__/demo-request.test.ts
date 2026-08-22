@@ -107,15 +107,44 @@ describe("submitDemoRequest", () => {
     }
   });
 
-  it("throws a configuration error when SEND_EMAIL/DEMO_REQUEST_DESTINATION are set but PUBLIC_BASE_URL isn't", async () => {
-    const send = vi.fn();
-    const env = {
-      SEND_EMAIL: { send },
-      DEMO_REQUEST_DESTINATION: "ops@chad.example",
-      // PUBLIC_BASE_URL intentionally omitted.
-    };
+  it("resolves without throwing and logs a warning when SEND_EMAIL/DEMO_REQUEST_DESTINATION are set but PUBLIC_BASE_URL isn't", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const send = vi.fn();
+      const env = {
+        SEND_EMAIL: { send },
+        DEMO_REQUEST_DESTINATION: "ops@chad.example",
+        // PUBLIC_BASE_URL intentionally omitted.
+      };
 
-    await expect(submitDemoRequest(env, validInput, "203.0.113.5")).rejects.toThrow();
-    expect(send).not.toHaveBeenCalled();
+      // A misconfigured deployment (email delivery opted into but incomplete) must degrade to
+      // "log only", not throw a raw internal-config error out to the public, unauthenticated
+      // caller and silently drop the submission.
+      await expect(submitDemoRequest(env, validInput, "203.0.113.5")).resolves.toBeUndefined();
+      expect(send).not.toHaveBeenCalled();
+      expect(loggedOnlyEvents(warn)).toHaveLength(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("resolves without throwing and logs a warning when PUBLIC_BASE_URL is set but isn't a valid URL", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const send = vi.fn();
+      const env = {
+        SEND_EMAIL: { send },
+        DEMO_REQUEST_DESTINATION: "ops@chad.example",
+        PUBLIC_BASE_URL: "not-a-url",
+      };
+
+      // new URL() throws a TypeError on a malformed value; that's the same class of
+      // misconfiguration as a missing PUBLIC_BASE_URL and must degrade the same way.
+      await expect(submitDemoRequest(env, validInput, "203.0.113.5")).resolves.toBeUndefined();
+      expect(send).not.toHaveBeenCalled();
+      expect(loggedOnlyEvents(warn)).toHaveLength(1);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

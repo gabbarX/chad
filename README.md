@@ -221,8 +221,11 @@ Each gatekeeper package contains instructions for how to set it up:
 
 The public marketing page includes a "Request a demo" form, backed by `PublicApi.submitDemoRequest`
 in `packages/workshop-backend`. Submissions are always validated server-side, and are IP
-rate-limited when a `DEMO_REQUEST_RATE_LIMITER` binding is configured; whether they also generate
-an email notification is controlled separately by an optional `send_email` binding.
+rate-limited when a `DEMO_REQUEST_RATE_LIMITER` binding is configured -- see the commented-out
+`ratelimits` block in `packages/workshop-backend/wrangler.jsonc` for how to set one up. Without it,
+submissions are still accepted (rate limiting is best-effort: a missing or failing limiter never
+blocks a submission). Whether submissions also generate an email notification is controlled
+separately by an optional `send_email` binding.
 
 By default, `SEND_EMAIL` isn't bound, so submissions are accepted and simply logged (see
 `packages/workshop-backend/src/demo-request.ts`) rather than dropped. To have them emailed to your

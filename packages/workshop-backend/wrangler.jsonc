@@ -102,6 +102,20 @@
   // "vars": {
   //   "DEMO_REQUEST_DESTINATION": "you@yourdomain.com"
   // },
+
+  // Uncomment to rate-limit "Request a demo" submissions by IP. Requires a Rate Limiting
+  // namespace, created via the Cloudflare dashboard (Account Home -> Rate Limiting); its ID goes
+  // in "namespace_id" below (there is no `wrangler` CLI subcommand for this -- it's dashboard- or
+  // API-only). "period" must be 10 or 60 (seconds) -- those are the only values the Rate Limiting
+  // API supports. Without this, submissions are still accepted (see the fail-open behavior in
+  // src/demo-request.ts).
+  // "ratelimits": [
+  //   {
+  //     "name": "DEMO_REQUEST_RATE_LIMITER",
+  //     "namespace_id": "<your-namespace-id>",
+  //     "simple": { "limit": 5, "period": 60 }
+  //   }
+  // ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
