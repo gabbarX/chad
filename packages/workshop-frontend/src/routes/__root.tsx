@@ -13,6 +13,7 @@ import AppShell from '../components/AppShell/AppShell'
 import LoginPage from '../LoginPage'
 import OnboardingWizard from '../OnboardingWizard'
 import AccountSelectionModal from '../components/billing/AccountSelectionModal'
+import MarketingLandingPage from '../marketing/MarketingLandingPage'
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -26,12 +27,13 @@ function RootComponent() {
 
   // Routes that don't require auth (public routes)
   const isSignup = pathname === '/signup'
+  const isLogin = pathname === '/login'
   const isBlueprint = pathname.startsWith('/blueprint/')
 
   // A standalone (no app shell) render is used only for signed-out visitors of public routes.
   // Signed-in users get the full app chrome so public pages (esp. the blueprint detail) feel
   // native — sidebar and all — instead of floating on a bare page.
-  const standalone = isSignup || (isBlueprint && !isAuthenticated)
+  const standalone = isSignup || isLogin || (isBlueprint && !isAuthenticated)
 
   // The workspace editor renders fullscreen (no app chrome). /gadget/ is the legacy URL, kept
   // here so the chrome doesn't flash in during the redirect to /workspace/.
@@ -79,14 +81,19 @@ function RootComponent() {
     )
   }
 
-  // Not authenticated and not a public route — show login
+  // Not authenticated and not a public route — show the marketing page at `/`, login elsewhere.
   if (!isAuthenticated && !standalone) {
+    if (pathname === '/') {
+      return <MarketingLandingPage rpcStub={rpcStub} />
+    }
     return <LoginPage rpcStub={rpcStub} onLoginSuccess={handleLoginSuccess} />
   }
 
-  // Signed-out visitors of public routes render without the auth wrapper / app shell.
+  // Signed-out visitors of public routes render without the auth wrapper / app shell. Both
+  // /signup and /login render their own bare card with no app chrome — only the blueprint case
+  // wants the shared Header.
   if (standalone) {
-    const showHeader = !isSignup
+    const showHeader = isBlueprint
     return (
       <TooltipProvider>
         <Toasty>

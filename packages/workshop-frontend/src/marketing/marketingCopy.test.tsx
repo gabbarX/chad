@@ -3,6 +3,13 @@
 
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { RpcStub } from 'capnweb'
 import type { DemoRequestInput, PublicApi } from '@gadgets/workshop-shared/api'
@@ -14,6 +21,10 @@ vi.mock('../components/MeshBackground', () => ({ default: () => null }))
 import MarketingLandingPage from './MarketingLandingPage'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+// jsdom doesn't implement scrolling; the router's hash scroll restoration calls it on mount, now
+// that the tree is wrapped in a real router. Same stub as legacyRedirects.test.tsx.
+window.scrollTo = () => {}
 
 /**
  * Every string the product owner approved, verbatim.
@@ -88,7 +99,17 @@ describe('MarketingLandingPage', () => {
     const rpcStub = {
       submitDemoRequest: vi.fn<(request: DemoRequestInput) => Promise<void>>(),
     } as unknown as RpcStub<PublicApi>
-    await act(async () => root.render(<MarketingLandingPage rpcStub={rpcStub} />))
+
+    // MarketingNav's "Log in" CTA is a typed router `Link`, so it needs a real router context —
+    // a bare createRoot().render() (no RouterProvider) throws on mount. Mirrors the router
+    // scaffolding SandboxedGatekeeperApp.test.tsx uses for the same reason.
+    const rootRoute = createRootRoute({
+      component: () => <MarketingLandingPage rpcStub={rpcStub} />,
+    })
+    const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login' })
+    const history = createMemoryHistory({ initialEntries: ['/'] })
+    const router = createRouter({ history, routeTree: rootRoute.addChildren([loginRoute]) })
+    await act(async () => root.render(<RouterProvider router={router} />))
   })
 
   afterEach(async () => {
@@ -134,6 +155,13 @@ describe('MarketingLandingPage', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
     // A fragment link would silently fail inside this scroll container, so there must not be one.
     expect(container.querySelector('a[href^="#"]')).toBeNull()
+  })
+
+  it('links the log in CTA to the /login route via a typed router Link', () => {
+    const loginLink = [...container.querySelectorAll('a')].find(
+      (a) => a.textContent === 'Log in',
+    )!
+    expect(loginLink.getAttribute('href')).toBe('/login')
   })
 
   it('links the self-host and source CTAs at this repository', () => {

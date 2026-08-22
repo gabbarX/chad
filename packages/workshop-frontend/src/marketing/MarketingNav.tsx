@@ -1,4 +1,5 @@
 import { Hexagon } from '@phosphor-icons/react'
+import { Link } from '@tanstack/react-router'
 import { Button } from '@cloudflare/kumo'
 
 interface MarketingNavProps {
@@ -38,16 +39,12 @@ export default function MarketingNav({ onRequestDemo }: MarketingNavProps) {
         </a>
 
         <nav className="flex shrink-0 items-center gap-2 sm:gap-4">
-          {/* TODO(task-4): switch to `<Link to="/login">` once Task 4 adds `src/routes/login.tsx`.
-              TanStack Router types `to` against the generated route tree, and `/login` is not in it
-              yet, so a typed `Link` fails `tsc` today. A document navigation is the right fallback
-              rather than casting: this is the public-page-to-app boundary, so a full load is fine. */}
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="demo-link rounded-md px-2 py-1.5 text-sm font-medium text-kumo-subtle"
           >
             Log in
-          </a>
+          </Link>
           <Button variant="primary" onClick={onRequestDemo} className="shrink-0">
             Request a demo
           </Button>
