@@ -3,6 +3,7 @@ import { validateRpc } from "capnweb-validate";
 import type {
   AnthropicMessagesCompat, Api, AssistantMessageEventStream, Context, FetchFunction, Model,
   ModelCost, OpenAICompletionsCompat, ProviderHeaders, SimpleStreamOptions, StreamFunction,
+  ThinkingLevelMap,
 } from "@earendil-works/pi-ai";
 import { stream as anthropicMessagesStream } from "@earendil-works/pi-ai/api/anthropic-messages";
 import { stream as googleGenerativeAiStream } from "@earendil-works/pi-ai/api/google-generative-ai";
@@ -167,6 +168,24 @@ function modelTokenWindow(config: AiModelConfig, catalog: Model<Api> | undefined
   };
 }
 
+// Thinking levels for an OpenRouter model, with "off" marked unsupported.
+//
+// Some models behind OpenRouter mandate reasoning and reject any attempt to switch it off with
+// `400 {"message":"Reasoning is mandatory for this endpoint and cannot be disabled."}`. pi's
+// thinking-off request for this API is `reasoning: {effort: "none"}`, which is exactly what those
+// models refuse -- and pi's catalog marks only two of its 303 entries as reasoning-mandatory
+// (`thinkingLevelMap.off === null`), so it cannot be trusted to say which models those are.
+//
+// Marking `off` unsupported for every OpenRouter model -- pi's documented meaning for a null level
+// -- makes pi omit the reasoning field entirely rather than send "none", leaving the provider
+// default in place. That is the only thinking-off request that is safe across the whole catalog.
+// The cost is that a one-shot call (completeText passes `thinking: false` for titles, binding
+// names and compaction summaries) can no longer force reasoning off on models that would have
+// allowed it; a request that fails outright is worse than one that reasons when asked not to.
+function openRouterThinkingLevels(catalog: Model<Api> | undefined): ThinkingLevelMap {
+  return { ...catalog?.thinkingLevelMap, off: null };
+}
+
 // Compat flags for a Workers AI model reached over its OpenAI-compatible endpoint (direct REST
 // or the gateway's workers-ai route). Matches pi's own generated Workers AI catalog entries.
 function workersAiCompat(catalog: Model<Api> | undefined): OpenAICompletionsCompat {
@@ -273,7 +292,7 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         input: catalog?.input ?? ["text", "image"],
         cost: catalogCost(catalog?.cost),
         ...window,
-        thinkingLevelMap: catalog?.thinkingLevelMap,
+        thinkingLevelMap: openRouterThinkingLevels(catalog),
         compat: catalog?.compat,
       };
     default:
@@ -330,8 +349,9 @@ function makeHandle(args: HandleArgs): ModelHandle {
   //   thinking off outright rather than leaving it to the provider default -- so every reasoning
   //   model reached through OpenRouter would silently stop reasoning. Keyed on the compat flag and
   //   not on `api`, because the openai-completions API is shared with Workers AI and Ollama, whose
-  //   behavior must not change. `thinking: false` still disables reasoning correctly: no effort is
-  //   passed, and pi's "none" default is exactly what that should mean.
+  //   behavior must not change. With `thinking: false` no effort is passed, and
+  //   openRouterThinkingLevels() makes pi omit the reasoning field rather than send "none", which
+  //   models that mandate reasoning reject.
   // - Everything else: provider defaults.
   const anthropicCompat = args.model.compat as AnthropicMessagesCompat | undefined;
   const completionsCompat = args.model.compat as OpenAICompletionsCompat | undefined;
@@ -680,7 +700,7 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
           input: catalog?.input ?? ["text", "image"],
           cost: catalogCost(catalog?.cost),
           ...window,
-          thinkingLevelMap: catalog?.thinkingLevelMap,
+          thinkingLevelMap: openRouterThinkingLevels(catalog),
           compat: catalog?.compat,
         },
         apiKey: config.apiToken,
