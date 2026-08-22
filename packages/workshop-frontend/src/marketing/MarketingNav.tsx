@@ -13,9 +13,14 @@ interface MarketingNavProps {
 }
 
 /**
- * Marketing page top bar. One line at every width, 64px tall, with the hexagon wordmark on the left
+ * Marketing page top bar. One line at every width, 56px tall, with the hexagon wordmark on the left
  * and the two things a visitor can do on the right. The wordmark text drops below `sm` so the bar
  * never wraps on a phone; the hexagon carries the brand at that size.
+ *
+ * The bar is short and its horizontal padding matches the page's section shell exactly, so the
+ * wordmark lands on the same left edge as the dateline strip immediately under it and the section
+ * rails all the way down. On a page whose whole argument is a visible grid, a nav inset by a
+ * different amount than everything below it is the first thing that gives it away.
  */
 export default function MarketingNav({ onRequestDemo }: MarketingNavProps) {
   return (
@@ -25,7 +30,7 @@ export default function MarketingNav({ onRequestDemo }: MarketingNavProps) {
         backgroundColor: 'color-mix(in srgb, var(--color-kumo-base) 82%, transparent)',
       }}
     >
-      <div className="mx-auto flex h-16 w-full max-w-300 items-center justify-between gap-4 px-6 lg:px-10">
+      <div className="mx-auto flex h-14 w-full max-w-300 items-center justify-between gap-4 px-5 md:px-8 lg:px-12">
         {/* Wordmark. Reuses the hexagon favicon's mark via the Phosphor `Hexagon` glyph at
             `--color-kumo-brand`, the same pairing `components/Header.tsx` uses in the app chrome.
             "Chad" is hardcoded: this page is brand content, not a per-deployment site name.

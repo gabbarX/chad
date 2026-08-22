@@ -49,7 +49,7 @@ export default function MarketingLandingPage({ rpcStub }: MarketingLandingPagePr
 
         <section
           ref={demoFormRef}
-          className="scroll-mt-16 border-t border-kumo-line bg-kumo-elevated"
+          className="scroll-mt-14 border-t border-kumo-line bg-kumo-elevated"
         >
           <div className="mx-auto w-full max-w-300 px-6 py-20 sm:py-24 lg:px-10 lg:py-28">
             <div className="mx-auto max-w-2xl">

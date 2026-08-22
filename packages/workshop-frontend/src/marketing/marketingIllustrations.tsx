@@ -10,7 +10,13 @@ import type { ReactNode } from 'react'
  * prompt and outcome text carry the meaning for assistive tech.
  */
 
-/** Shared viewBox so both mocks share one coordinate space and scale identically in their well. */
+/**
+ * Shared viewBox so both mocks share one coordinate space and scale identically in their well.
+ *
+ * Capped at 440px rather than bled to the full plate: at ~570px this line art reads thin and sparse
+ * next to the real screenshots beside it, so it sits centred at a specimen size instead. Strokes are
+ * 2 rather than 1.5 for the same reason — hairlines disappear against a captured UI.
+ */
 function MockFrame({ children }: { children: ReactNode }) {
   return (
     <svg
@@ -18,7 +24,7 @@ function MockFrame({ children }: { children: ReactNode }) {
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
       focusable="false"
-      className="h-full w-full"
+      className="h-auto w-full max-w-110"
     >
       {children}
     </svg>
@@ -27,8 +33,9 @@ function MockFrame({ children }: { children: ReactNode }) {
 
 /**
  * A repo issue dashboard: a header row, a small bar chart of issue counts, and three issue rows
- * carrying status marks. The tallest bar and one status mark take the brand accent so the eye has
- * somewhere to land.
+ * carrying status marks. The peak bar and the leading status mark take the *compute* category
+ * accent rather than the brand orange: they are data marks, so they belong to the four-colour legend
+ * the page runs down its entry meta lines, not to the orange the token rule reserves for intent.
  */
 export function GitHubDashboardMock() {
   // Bar heights are chosen for silhouette, not to assert any real metric.
@@ -46,9 +53,9 @@ export function GitHubDashboardMock() {
         height="168"
         rx="10"
         className="fill-none stroke-kumo-line"
-        strokeWidth="1.5"
+        strokeWidth="2"
       />
-      <line x1="16" y1="44" x2="304" y2="44" className="stroke-kumo-line" strokeWidth="1.5" />
+      <line x1="16" y1="44" x2="304" y2="44" className="stroke-kumo-line" strokeWidth="2" />
       <rect x="30" y="26" width="52" height="8" rx="4" className="fill-kumo-fill" />
       <rect x="248" y="26" width="42" height="8" rx="4" className="fill-kumo-brand" opacity="0.25" />
 
@@ -63,11 +70,12 @@ export function GitHubDashboardMock() {
             width="12"
             height={height}
             rx="3"
-            className={isPeak ? 'fill-kumo-brand' : 'fill-kumo-fill'}
+            className={isPeak ? undefined : 'fill-kumo-fill'}
+            style={isPeak ? { fill: 'var(--color-compute-100)' } : undefined}
           />
         )
       })}
-      <line x1="30" y1="124" x2="196" y2="124" className="stroke-kumo-line" strokeWidth="1.5" />
+      <line x1="30" y1="124" x2="196" y2="124" className="stroke-kumo-line" strokeWidth="2" />
 
       {/* Issue rows */}
       {[0, 1, 2].map((row) => (
@@ -76,7 +84,8 @@ export function GitHubDashboardMock() {
             cx="36"
             cy="0"
             r="4"
-            className={row === 0 ? 'fill-kumo-brand' : 'fill-kumo-interact'}
+            className={row === 0 ? undefined : 'fill-kumo-interact'}
+            style={row === 0 ? { fill: 'var(--color-compute-100)' } : undefined}
           />
           <rect
             x="48"
@@ -114,7 +123,7 @@ export function GoogleDocMock() {
         height="176"
         rx="8"
         className="fill-none stroke-kumo-line"
-        strokeWidth="1.5"
+        strokeWidth="2"
       />
 
       {/* Title */}
@@ -141,7 +150,7 @@ export function GoogleDocMock() {
         x2="196"
         y2="119.5"
         className="stroke-kumo-danger"
-        strokeWidth="1.5"
+        strokeWidth="2"
         opacity="0.7"
       />
       <rect x="80" y="132" width="128" height="7" rx="3.5" className="fill-kumo-brand" />
@@ -152,7 +161,7 @@ export function GoogleDocMock() {
         height="19"
         rx="5"
         className="fill-none stroke-kumo-brand"
-        strokeWidth="1.5"
+        strokeWidth="2"
         opacity="0.35"
       />
 

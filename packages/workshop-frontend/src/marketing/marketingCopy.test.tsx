@@ -14,10 +14,6 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import type { RpcStub } from 'capnweb'
 import type { DemoRequestInput, PublicApi } from '@gadgets/workshop-shared/api'
 
-// The hero's brand backdrop is a `<canvas>` driven by a ResizeObserver; jsdom has neither, and the
-// visual carries no copy. Stubbed the same way `homePromptFlow.test.tsx` stubs it.
-vi.mock('../components/MeshBackground', () => ({ default: () => null }))
-
 import MarketingLandingPage from './MarketingLandingPage'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -133,16 +129,29 @@ describe('MarketingLandingPage', () => {
       expect(text).toContain(emoji)
     }
 
-    // The three screenshots are not in `public/` yet; the paths are still the contract.
+    // The asset paths are the contract. The hero's `<picture>` contributes exactly one `<img>` —
+    // jsdom never evaluates `<source>`, so the wide capture on the `<img>` itself is what shows up
+    // here, and the narrow `hero-gadget.png` swap is invisible to this assertion.
     const sources = [...container.querySelectorAll('img')].map((img) => img.getAttribute('src'))
     expect(sources).toEqual([
+      '/marketing/hero-workspace.png',
       '/marketing/slides.png',
       '/marketing/whiteboard.png',
       '/marketing/tic-tac-toe.png',
     ])
+
     for (const img of container.querySelectorAll('img')) {
-      expect(img.getAttribute('loading')).toBe('lazy')
       expect(img.getAttribute('alt')).toBeTruthy()
+    }
+
+    // The hero figure is the LCP element, so it is deliberately eager and prioritised. Everything
+    // below the fold stays lazy — asserted per-image rather than in a blanket loop, so relaxing the
+    // hero can't silently relax the other three.
+    const [hero, ...belowTheFold] = [...container.querySelectorAll('img')]
+    expect(hero.getAttribute('loading')).toBeNull()
+    expect(hero.getAttribute('fetchpriority')).toBe('high')
+    for (const img of belowTheFold) {
+      expect(img.getAttribute('loading')).toBe('lazy')
     }
   })
 

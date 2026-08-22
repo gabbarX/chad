@@ -349,6 +349,25 @@ html {
   color: var(--color-kumo-brand);
 }
 
+/* Marketing "ink band" — the full-bleed dark section on the marketing page.
+   Hand-written rather than `bg-kumo-contrast`, because in dark mode `--color-kumo-contrast` resolves
+   to the brand orange (see the dark override further down this file) and the band would come out
+   full-bleed orange. The local `--ink-*` variables let everything inside the band stay variable-
+   driven the way the rest of the page is token-driven, in both themes. */
+.marketing-ink-band {
+  background: #14110f;
+  --ink-fg: #f6f5f3;
+  --ink-fg-subtle: #a8a49e;
+  --ink-line: #ffffff1f;
+}
+
+[data-mode="dark"] .marketing-ink-band {
+  background: var(--color-kumo-elevated);
+  --ink-fg: var(--text-color-kumo-default);
+  --ink-fg-subtle: var(--text-color-kumo-subtle);
+  --ink-line: var(--color-kumo-line);
+}
+
 /* Connection chip */
 .connection-chip {
   border-color: var(--color-kumo-line);
