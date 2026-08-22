@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 /**
  * Inline illustrations for the two "Just ask" cards that have no screenshot behind them.
  *
@@ -8,9 +10,7 @@
  * prompt and outcome text carry the meaning for assistive tech.
  */
 
-import type { ReactNode } from 'react'
-
-/** Shared shell so both mocks sit on the same surface, radius, and inset padding. */
+/** Shared viewBox so both mocks share one coordinate space and scale identically in their well. */
 function MockFrame({ children }: { children: ReactNode }) {
   return (
     <svg
