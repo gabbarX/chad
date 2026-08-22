@@ -683,7 +683,7 @@ async function fetchPullRequestState(repo: string, number: number): Promise<Pull
   const path = `/repos/${repo}/pulls/${number}`;
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "cloudflare-os-preview-sweep",
+    "User-Agent": "chad-preview-sweep",
   };
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
 

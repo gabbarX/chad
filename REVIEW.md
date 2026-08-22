@@ -83,7 +83,7 @@ These break silently rather than loudly, so they are worth flagging even when th
 - Do not add `incremental` to a tsconfig, do not reintroduce a root script calling
   `pnpm run --recursive`, and do not remove `scripts/assert-workerd.ts` from a package's
   `setupFiles` to make a suite green.
-- `pnpm test`'s `--filter '!cloudflare-os'` hardcodes the root package name; renaming the root
+- `pnpm test`'s `--filter '!chad'` hardcodes the root package name; renaming the root
   silently doubles the scripts suite.
 - After an intentional release-manifest change, the golden file must be regenerated
   (`UPDATE_GOLDEN=1 node --test scripts/release/manifest-lib.test.ts`) and its diff reviewed.

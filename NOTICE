@@ -30,9 +30,21 @@ repository.
 Modifications
 -------------
 
-This repository contains modifications made after the fork point recorded above.
-Files changed relative to upstream carry a change notice, as required by
-Section 4(b) of the License.
+NOTICE OF CHANGES (Apache License, Version 2.0, Section 4(b)):
+
+This work is a MODIFIED version of Cloudflare OS. It is not the original software
+as distributed by Cloudflare, Inc. Changes have been made to the files in this
+repository relative to the upstream fork point recorded above.
+
+Modifications to date include:
+
+  * Rebranding of the product from "Cloudflare OS" to "Chad" across source,
+    configuration, user-facing strings, and documentation.
+  * Removal of the upstream git remote and replacement of the commit history with
+    a single base commit.
+
+Cloudflare, Inc. is not responsible for, and has not reviewed or approved, any
+modification made here.
 
 
 Trademarks
