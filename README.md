@@ -228,15 +228,10 @@ Then visit: http://localhost:3000
 
 ### Contributing
 
-At this time, we are not seeking outside contribution.
-
-AI has made writing code easy. The hard part, today, is not writing the code, but reviewing it, making sure quality stays high, and keeping the product coherent. In that light, unfortunately, external code contributions are "donating" the easy part of the job, while creating more of the hard work.
-
-With that said, we are happy to accept small, trivially-verified PRs that fix a problem. However, we ask that you refrain from submitting low-value PRs (e.g. typo fixes) or PRs that are more than a dozen or so lines. Such PRs will be closed with a reference to this guideline.
-
-If you have a big idea you'd like us to consider, feel free to [open a discussion](https://github.com/gabbarX/chad/discussions) about it.
-
-This policy may change in the future as the project matures. Until then, thank you for your understanding.
+Chad is a private, commercial product and this repository is not public, so there is no
+outside-contribution process. If you have push access, see
+[CONTRIBUTING.md](./CONTRIBUTING.md) for how we work — and in particular for the rules around
+`LICENSE` and `NOTICE`, which carry our Apache-2.0 obligations to the upstream project.
 
 ## Credits
 

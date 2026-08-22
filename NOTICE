@@ -42,6 +42,9 @@ Modifications to date include:
     configuration, user-facing strings, and documentation.
   * Removal of the upstream git remote and replacement of the commit history with
     a single base commit.
+  * Removal of the upstream open-source contribution machinery, including the
+    Contributor License Agreement workflow and the external-contribution policy
+    checks, which do not apply to this private repository.
 
 Cloudflare, Inc. is not responsible for, and has not reviewed or approved, any
 modification made here.
