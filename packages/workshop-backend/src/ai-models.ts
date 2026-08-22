@@ -12,6 +12,7 @@ import { ANTHROPIC_MODELS } from "@earendil-works/pi-ai/providers/anthropic.mode
 import { CLOUDFLARE_WORKERS_AI_MODELS } from "@earendil-works/pi-ai/providers/cloudflare-workers-ai.models";
 import { GOOGLE_MODELS } from "@earendil-works/pi-ai/providers/google.models";
 import { OPENAI_MODELS } from "@earendil-works/pi-ai/providers/openai.models";
+import { OPENROUTER_MODELS } from "@earendil-works/pi-ai/providers/openrouter.models";
 import { ApprovalQueue, Gatekeeper, ResourceDescription, stripTrailingSlashes } from '@gadgets/workshop-shared/gatekeeper';
 import { LanguageModelBinding } from "./ai-model-binding";
 import AI_MODEL_BINDING_TYPES from "./ai-model-binding.txt";
@@ -125,6 +126,19 @@ const API_STREAMS: Record<string, StreamFunction<Api, SimpleStreamOptions>> = {
 
 const ZERO_COST: ModelCost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
+// Some catalog entries price a model that has no fixed price with a negative sentinel rather
+// than a real rate: OpenRouter's auto-routers (openrouter/auto, openrouter/auto-beta) bill
+// whatever the model they pick costs, and pi records that as -1000000. Billing those verbatim
+// would drive a workspace's totalCost -- and the Cloudflare balance guard that reads it --
+// steeply negative, so an unpriceable model is treated as free (what we already do for every
+// uncataloged model) instead.
+function catalogCost(cost: ModelCost | undefined): ModelCost {
+  if (!cost) return ZERO_COST;
+  const priced = cost.input >= 0 && cost.output >= 0 &&
+      (cost.cacheRead ?? 0) >= 0 && (cost.cacheWrite ?? 0) >= 0;
+  return priced ? cost : ZERO_COST;
+}
+
 // Consult pi's builtin catalog for cost/compat metadata of a known model id. Unknown models are
 // fine (synthesized with zero cost). Import per-provider, not providers/all.
 function catalogModel(provider: AiModelConfig["provider"], modelId: string): Model<Api> | undefined {
@@ -133,6 +147,7 @@ function catalogModel(provider: AiModelConfig["provider"], modelId: string): Mod
     case "openai": return (OPENAI_MODELS as Record<string, Model<Api>>)[modelId];
     case "google": return (GOOGLE_MODELS as Record<string, Model<Api>>)[modelId];
     case "cloudflare": return (CLOUDFLARE_WORKERS_AI_MODELS as Record<string, Model<Api>>)[modelId];
+    case "openrouter": return (OPENROUTER_MODELS as Record<string, Model<Api>>)[modelId];
     case "ollama": return undefined;
     default: return undefined;
   }
@@ -188,7 +203,7 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         baseUrl: `${gatewayUrl}/anthropic`,
         reasoning: true,
         input: catalog?.input ?? ["text", "image"],
-        cost: catalog?.cost ?? ZERO_COST,
+        cost: catalogCost(catalog?.cost),
         ...window,
         thinkingLevelMap: catalog?.thinkingLevelMap,
         // Catalog compat verbatim: pi's catalog marks exactly the models that require the
@@ -206,7 +221,7 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         baseUrl: `${gatewayUrl}/openai`,
         reasoning: catalog?.reasoning ?? true,
         input: catalog?.input ?? ["text", "image"],
-        cost: catalog?.cost ?? ZERO_COST,
+        cost: catalogCost(catalog?.cost),
         ...window,
         thinkingLevelMap: catalog?.thinkingLevelMap,
         compat: catalog?.compat,
@@ -223,7 +238,7 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         baseUrl: `${gatewayUrl}/google-ai-studio/v1beta`,
         reasoning: catalog?.reasoning ?? true,
         input: catalog?.input ?? ["text", "image"],
-        cost: catalog?.cost ?? ZERO_COST,
+        cost: catalogCost(catalog?.cost),
         ...window,
         thinkingLevelMap: catalog?.thinkingLevelMap,
       };
@@ -239,9 +254,27 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         baseUrl: `${gatewayUrl}/workers-ai/v1`,
         reasoning: catalog?.reasoning ?? false,
         input: catalog?.input ?? ["text"],
-        cost: catalog?.cost ?? ZERO_COST,
+        cost: catalogCost(catalog?.cost),
         ...window,
         compat: workersAiCompat(catalog),
+      };
+    case "openrouter":
+      // OpenRouter's own OpenAI-compatible chat API, reached through the gateway's openrouter
+      // route. Catalog compat is carried verbatim because it is what transports
+      // `thinkingFormat: "openrouter"` -- the flag pi needs to speak OpenRouter's normalized
+      // reasoning object (see the apiExtras note in makeHandle).
+      return {
+        id: config.model,
+        name: catalog?.name ?? config.model,
+        api: "openai-completions",
+        provider: "openrouter",
+        baseUrl: `${gatewayUrl}/openrouter`,
+        reasoning: catalog?.reasoning ?? true,
+        input: catalog?.input ?? ["text", "image"],
+        cost: catalogCost(catalog?.cost),
+        ...window,
+        thinkingLevelMap: catalog?.thinkingLevelMap,
+        compat: catalog?.compat,
       };
     default:
       return undefined;
@@ -292,12 +325,21 @@ function makeHandle(args: HandleArgs): ModelHandle {
   //   when no effort is passed; effort selection also makes pi request encrypted reasoning
   //   content, which -- with pi's unconditional `store: false` -- preserves the old stateless
   //   ZDR behavior with reasoning carried between tool steps.
+  // - OpenRouter: explicit medium reasoning effort, for the same reason as OpenAI Responses. Given
+  //   no effort, pi's openrouter thinking format sends `reasoning: {effort: "none"}`, turning
+  //   thinking off outright rather than leaving it to the provider default -- so every reasoning
+  //   model reached through OpenRouter would silently stop reasoning. Keyed on the compat flag and
+  //   not on `api`, because the openai-completions API is shared with Workers AI and Ollama, whose
+  //   behavior must not change. `thinking: false` still disables reasoning correctly: no effort is
+  //   passed, and pi's "none" default is exactly what that should mean.
   // - Everything else: provider defaults.
   const anthropicCompat = args.model.compat as AnthropicMessagesCompat | undefined;
+  const completionsCompat = args.model.compat as OpenAICompletionsCompat | undefined;
   const apiExtras: Record<string, unknown> =
       args.model.api === "anthropic-messages"
           ? (anthropicCompat?.forceAdaptiveThinking === true ? { thinkingEnabled: true } : {}) :
-      args.model.api === "openai-responses" ? { reasoningEffort: "medium" } : {};
+      args.model.api === "openai-responses" ? { reasoningEffort: "medium" } :
+      completionsCompat?.thinkingFormat === "openrouter" ? { reasoningEffort: "medium" } : {};
 
   const handle: ModelHandle = {
     model: args.model,
@@ -519,7 +561,7 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
           baseUrl: config.apiUrl ?? "https://api.anthropic.com",
           reasoning: true,
           input: catalog?.input ?? ["text", "image"],
-          cost: catalog?.cost ?? ZERO_COST,
+          cost: catalogCost(catalog?.cost),
           ...window,
           thinkingLevelMap: catalog?.thinkingLevelMap,
           // Catalog compat verbatim -- see the gateway-path comment on forceAdaptiveThinking.
@@ -546,7 +588,7 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
           baseUrl: `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/ai/v1`,
           reasoning: catalog?.reasoning ?? false,
           input: catalog?.input ?? ["text"],
-          cost: catalog?.cost ?? ZERO_COST,
+          cost: catalogCost(catalog?.cost),
           ...window,
           compat: workersAiCompat(catalog),
         },
@@ -564,7 +606,7 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
           baseUrl: config.apiUrl ?? "https://generativelanguage.googleapis.com/v1beta",
           reasoning: catalog?.reasoning ?? true,
           input: catalog?.input ?? ["text", "image"],
-          cost: catalog?.cost ?? ZERO_COST,
+          cost: catalogCost(catalog?.cost),
           ...window,
           thinkingLevelMap: catalog?.thinkingLevelMap,
         },
@@ -621,6 +663,29 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
             : { apiKey: config.apiToken }),
         sessionAffinity,
       });
+    case "openrouter":
+      // OpenRouter fronts every upstream provider behind one OpenAI-compatible endpoint, so a
+      // single API key reaches all of them. pi ships a generated catalog for it (303 models), which
+      // is what supplies the token window, pricing, input modalities and -- via compat --
+      // OpenRouter's reasoning format. Model ids the snapshot predates still work; they just fall
+      // back to modelTokenWindow's conservative defaults.
+      return makeHandle({
+        model: {
+          id: config.model,
+          name: catalog?.name ?? config.model,
+          api: "openai-completions",
+          provider: "openrouter",
+          baseUrl: config.apiUrl ?? "https://openrouter.ai/api/v1",
+          reasoning: catalog?.reasoning ?? true,
+          input: catalog?.input ?? ["text", "image"],
+          cost: catalogCost(catalog?.cost),
+          ...window,
+          thinkingLevelMap: catalog?.thinkingLevelMap,
+          compat: catalog?.compat,
+        },
+        apiKey: config.apiToken,
+        sessionAffinity,
+      });
     case "openai":
       return makeHandle({
         model: {
@@ -631,7 +696,7 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
           baseUrl: config.apiUrl ?? "https://api.openai.com/v1",
           reasoning: catalog?.reasoning ?? true,
           input: catalog?.input ?? ["text", "image"],
-          cost: catalog?.cost ?? ZERO_COST,
+          cost: catalogCost(catalog?.cost),
           ...window,
           thinkingLevelMap: catalog?.thinkingLevelMap,
           compat: catalog?.compat,

@@ -31,13 +31,21 @@ const isTextImageOrPdfMime = (mimeType: string) =>
 // pi-ai encodes only text and image content parts, so text + images are universal. PDFs ride an
 // image part and are bridged to a provider's native document input where one exists: Gemini takes
 // application/pdf inline data as-is, and Anthropic/OpenAI payloads are rewritten in flight (see
-// chat-attachment-pdf.ts). Workers AI and Ollama chat endpoints have no document input at all.
+// chat-attachment-pdf.ts). Workers AI, Ollama and OpenRouter have no document input at all: they
+// speak the OpenAI chat-completions API, which modelApiSupportsPdfAttachments() excludes and
+// bridgePdfAttachments() has no rewrite for.
+//
+// Gating is per provider, but OpenRouter model capability is per model -- 187 of the 303 models in
+// pi's catalog take images and the rest are text-only. Images are allowed for the provider as a
+// whole, since vision models are much of the reason to route through OpenRouter; sending one to a
+// text-only model surfaces the provider's own error, the same way Ollama already behaves.
 const ATTACHMENT_SUPPORT_BY_PROVIDER = {
   anthropic: isTextImageOrPdfMime,
   openai: isTextImageOrPdfMime,
   google: isTextImageOrPdfMime,
   cloudflare: isTextOrImageMime,
   ollama: isTextOrImageMime,
+  openrouter: isTextOrImageMime,
 } satisfies Record<AiModelProvider, (mimeType: string) => boolean>;
 
 function sanitizeChatAttachmentMimeType(mimeType: string | undefined): string {
