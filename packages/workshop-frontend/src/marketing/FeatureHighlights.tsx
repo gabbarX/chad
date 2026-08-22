@@ -17,7 +17,7 @@ const BLOCKS = [
     numeral: '01',
     accent: 'var(--color-compute-100)',
     label: 'Gadgets',
-    heading: 'Every request becomes its own app',
+    heading: 'When it builds, it builds just for you',
     body: "When you ask for a slide deck, a whiteboard, or a dashboard, Chad doesn't hand you a shared tool — it builds you a private one, running in its own secure sandbox. Don't like something about it? Just ask AI to change it. It's yours.",
   },
   {
@@ -47,6 +47,14 @@ export default function FeatureHighlights() {
               02 — HOW IT WORKS
             </p>
           </div>
+
+          {/* Standfirst. Establishes the order of operations the three blocks then detail: direct
+              work is the default, software is the escalation. Without it the band opens on
+              "Gadgets" and the whole section reads as a description of an app builder. */}
+          <p className="col-span-12 mt-6 max-w-[52ch] text-[17px] leading-[1.55] text-[var(--ink-fg-subtle)] md:col-span-9 md:mt-0">
+            Most requests the agent just handles — it writes and runs the code itself. When a job
+            needs software of its own, it builds that too. Three things keep all of it yours.
+          </p>
         </div>
 
         {BLOCKS.map(({ numeral, accent, label, heading, body }) => (

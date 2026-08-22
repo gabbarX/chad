@@ -20,8 +20,23 @@ const TEXT_SHELL = 'mx-auto w-full max-w-300 px-5 md:px-8 lg:px-12'
  */
 const FIGURE_SHELL = 'mx-auto w-full max-w-[96rem] px-5 md:px-8 lg:px-12'
 
-/** The categories the product builds for. First appearance of the four-colour legend. */
-const LEGEND = ['SLIDES', 'WHITEBOARDS', 'DASHBOARDS', 'GAMES', 'DOCS', 'INTERNAL TOOLS']
+/**
+ * What Chad works on — things you already have as much as things it builds. First appearance of the
+ * four-colour legend.
+ *
+ * The open-ended last entry is the load-bearing one: a closed list of six app categories read as a
+ * product catalogue, which is exactly the "it's an app builder" misreading this page has to avoid.
+ */
+const LEGEND = [
+  'DOCS',
+  'SLIDES',
+  'DASHBOARDS',
+  'WHITEBOARDS',
+  'REPOS',
+  'GAMES',
+  'INTERNAL TOOLS',
+  'ANYTHING ELSE YOU ASK FOR',
+]
 
 /** Cycles compute → storage → ai → media across the separators, the same order the page reuses. */
 const LEGEND_ACCENTS = [
@@ -48,14 +63,14 @@ export default function MarketingHero({ onRequestDemo }: MarketingHeroProps) {
         {/* (1) Dateline. A masthead needs a rule and a date line above it or the page starts in
             mid-air; this is what stops the top of the document reading as blank. */}
         <div className="flex h-10 items-center justify-between border-b border-kumo-line font-mono text-[11px] tracking-[0.14em] text-kumo-subtle uppercase">
-          <span>Chad — AI app workspace</span>
+          <span>Chad — AI workspace</span>
           <span className="hidden sm:block">Open source · Runs on your own infrastructure</span>
         </div>
 
         {/* (2) Masthead. Headline cols 1-7, standfirst cols 9-12. */}
         <div className="grid grid-cols-12 items-start gap-x-6 pt-10 pb-8 lg:gap-x-10 lg:pt-14 lg:pb-10">
           <h1 className="col-span-12 text-[clamp(2.75rem,6vw,5rem)] leading-[0.96] font-semibold tracking-[-0.035em] text-kumo-default text-balance lg:col-span-7">
-            Your own apps, built in seconds.
+            Ask for anything. Chad does it.
           </h1>
 
           <div className="col-span-12 mt-6 lg:col-span-4 lg:col-start-9 lg:mt-2">
@@ -63,8 +78,9 @@ export default function MarketingHero({ onRequestDemo }: MarketingHeroProps) {
                 to the primary CTA a few lines below. */}
             <div aria-hidden="true" className="mb-4 h-0.5 w-10 bg-kumo-contrast dark:bg-kumo-line" />
             <p className="text-[17px] leading-[1.55] text-kumo-subtle">
-              Chad turns any request into a working, secure app — instantly, and just for you. No
-              SaaS sign-up, no waiting on engineering, no shared risk.
+              A general-purpose AI agent that gets real work done — on your docs, your repos, your
+              Slack — and builds you a private app whenever one would help. It only ever touches what
+              you approve.
             </p>
           </div>
 
@@ -91,7 +107,7 @@ export default function MarketingHero({ onRequestDemo }: MarketingHeroProps) {
             </div>
 
             <p className="mt-4 font-mono text-[11px] tracking-[0.14em] text-kumo-subtle uppercase">
-              No engineering ticket · Private by default · Self-host free
+              Does the work · Builds the tools · Private by default
             </p>
           </div>
         </div>
@@ -136,7 +152,8 @@ export default function MarketingHero({ onRequestDemo }: MarketingHeroProps) {
               │
             </span>
             <span className="text-[13px] leading-relaxed text-kumo-subtle">
-              The conversation on the left; the app it built on the right. Both are yours alone.
+              The conversation on the left; the work on the right — here, an app the agent built and
+              now runs with you. Both are yours alone.
             </span>
           </figcaption>
         </figure>

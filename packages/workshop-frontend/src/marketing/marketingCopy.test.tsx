@@ -31,12 +31,16 @@ window.scrollTo = () => {}
  */
 const APPROVED_COPY = {
   hero: [
-    'Your own apps, built in seconds.',
-    'Chad turns any request into a working, secure app — instantly, and just for you. No SaaS sign-up, no waiting on engineering, no shared risk.',
+    'Ask for anything. Chad does it.',
+    'A general-purpose AI agent that gets real work done — on your docs, your repos, your Slack — and builds you a private app whenever one would help. It only ever touches what you approve.',
     'Request a demo',
     'Prefer to try it yourself? Self-host it free →',
+    // The legend's open-ended terminal. A closed list of app categories is the exact misreading
+    // this page has to avoid, so it is guarded like any other approved string.
+    'ANYTHING ELSE YOU ASK FOR',
   ],
   justAsk: [
+    'Five real prompts. Some build you something new; some just get the work done.',
     '"Make slides for my upcoming meeting with a customer."',
     'Builds a deck instantly using the built-in Slides format — no blank page.',
     '"Make a collaborative whiteboard app."',
@@ -50,8 +54,9 @@ const APPROVED_COPY = {
     'Attach a doc, AI edits it directly, scoped to just that file.',
   ],
   features: [
+    'Most requests the agent just handles — it writes and runs the code itself. When a job needs software of its own, it builds that too. Three things keep all of it yours.',
     'Gadgets',
-    'Every request becomes its own app',
+    'When it builds, it builds just for you',
     "When you ask for a slide deck, a whiteboard, or a dashboard, Chad doesn't hand you a shared tool — it builds you a private one, running in its own secure sandbox. Don't like something about it? Just ask AI to change it. It's yours.",
     'Gatekeepers',
     'Nothing gets touched without your OK',

@@ -146,7 +146,7 @@ export default function JustAskSection() {
           </h2>
 
           <p className="col-span-12 mt-4 max-w-[34ch] text-[15px] leading-relaxed text-kumo-subtle md:col-span-3 md:mt-0">
-            Five real prompts, and what came back.
+            Five real prompts. Some build you something new; some just get the work done.
           </p>
         </div>
 
