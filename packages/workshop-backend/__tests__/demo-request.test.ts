@@ -26,11 +26,17 @@ describe("submitDemoRequest", () => {
     }
   });
 
-  it("rejects an invalid email without logging or attempting to send", async () => {
+  it("rejects an invalid email with a single friendly message, not a raw ZodError dump", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     try {
-      await expect(submitDemoRequest({}, { ...validInput, email: "not-an-email" }, "203.0.113.5"))
-        .rejects.toThrow();
+      const attempt = submitDemoRequest({}, { ...validInput, email: "not-an-email" }, "203.0.113.5");
+      await expect(attempt).rejects.toThrow();
+      const error: Error = await attempt.catch(e => e);
+      // A raw ZodError's .message is a JSON dump of the full issues array (including the email
+      // regex under "pattern"), not something safe to show a public, unauthenticated caller.
+      expect(error.message).not.toMatch(/pattern|origin|"code"/);
+      expect(error.message.includes("\n")).toBe(false);
+      expect(error.message).toMatch(/email/i);
       expect(info).not.toHaveBeenCalled();
     } finally {
       info.mockRestore();
@@ -76,5 +82,40 @@ describe("submitDemoRequest", () => {
 
     expect(send).not.toHaveBeenCalled();
     expect(limit).toHaveBeenCalledWith({ key: "203.0.113.5" });
+  });
+
+  it("proceeds with the submission (fails open) when the rate limiter binding itself throws", async () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    try {
+      const send = vi.fn().mockResolvedValue(undefined);
+      const limit = vi.fn().mockRejectedValue(new Error("rate limiter unavailable"));
+      const env = {
+        SEND_EMAIL: { send },
+        DEMO_REQUEST_DESTINATION: "ops@chad.example",
+        PUBLIC_BASE_URL: "https://chad.example",
+        DEMO_REQUEST_RATE_LIMITER: { limit },
+      };
+
+      // A broken limiter binding is an infrastructure failure, not evidence of abuse -- mirrors
+      // client-errors.ts's best-effort posture, which never lets a limiter exception block the
+      // underlying operation.
+      await expect(submitDemoRequest(env, validInput, "203.0.113.5")).resolves.toBeUndefined();
+      expect(send).toHaveBeenCalledOnce();
+      expect(debug).toHaveBeenCalledOnce();
+    } finally {
+      debug.mockRestore();
+    }
+  });
+
+  it("throws a configuration error when SEND_EMAIL/DEMO_REQUEST_DESTINATION are set but PUBLIC_BASE_URL isn't", async () => {
+    const send = vi.fn();
+    const env = {
+      SEND_EMAIL: { send },
+      DEMO_REQUEST_DESTINATION: "ops@chad.example",
+      // PUBLIC_BASE_URL intentionally omitted.
+    };
+
+    await expect(submitDemoRequest(env, validInput, "203.0.113.5")).rejects.toThrow();
+    expect(send).not.toHaveBeenCalled();
   });
 });

@@ -48,11 +48,28 @@ export async function submitDemoRequest(
   input: DemoRequestInput,
   rateLimitKey: string,
 ): Promise<void> {
-  const parsed = DEMO_REQUEST_SCHEMA.parse(input); // throws on invalid input
+  // safeParse(), not parse(): a raw ZodError's .message is a JSON dump of every issue (including
+  // the email-format regex), which is unfit to surface from a public, unauthenticated endpoint.
+  // Mirrors gadget-export.ts's validateExportFormats(): report only the first issue's message.
+  const result = DEMO_REQUEST_SCHEMA.safeParse(input);
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid demo request.");
+  }
+  const parsed = result.data;
 
   if (env.DEMO_REQUEST_RATE_LIMITER) {
-    const outcome = await env.DEMO_REQUEST_RATE_LIMITER.limit({ key: rateLimitKey });
-    if (!outcome.success) throw new Error("Too many requests. Please try again later.");
+    let limited = false;
+    try {
+      limited = !(await env.DEMO_REQUEST_RATE_LIMITER.limit({ key: rateLimitKey })).success;
+    } catch (error) {
+      // Best-effort, like client-errors.ts's IP limiter: a broken limiter binding is an
+      // infrastructure failure, not evidence of abuse, so it degrades to "allow" rather than
+      // blocking (or erroring out) an otherwise-legitimate submission.
+      logger.debug("demo request rate limit failed; proceeding without rate limiting", {
+        event: "demo_request.rate_limit.failed", error,
+      });
+    }
+    if (limited) throw new Error("Too many requests. Please try again later.");
   }
 
   if (!env.SEND_EMAIL || !env.DEMO_REQUEST_DESTINATION) {
