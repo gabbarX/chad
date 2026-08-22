@@ -54,6 +54,21 @@ const runConfig = {
   },
 }
 
+/**
+ * Vitest options. Spread rather than a literal `test: {...}` for the same reason as `run` above:
+ * `defineConfig` here is vite's, whose `UserConfig` has no `test` property, and the excess-property
+ * check doesn't reach spreads.
+ *
+ * These tests declare `// @vitest-environment jsdom` per file. On Node >= 24 that is not enough for
+ * `localStorage`, which Node defines as an unusable non-enumerable global that shadows jsdom's --
+ * see scripts/jsdom-local-storage.ts.
+ */
+const testConfig = {
+  test: {
+    setupFiles: ['../../scripts/jsdom-local-storage.ts'],
+  },
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
   const backendHost = env.VITE_BACKEND_HOST?.trim() || 'localhost:8787'
@@ -62,6 +77,7 @@ export default defineConfig(({ mode }) => {
     // Spread, not a literal `run: {...}`: `run` is Vite+'s field and vite's own `defineConfig` has
     // no such property, but the excess-property check doesn't reach spreads.
     ...runConfig,
+    ...testConfig,
     plugins: [
       TanStackRouterVite({ target: 'react', autoCodeSplitting: true }),
       react(),

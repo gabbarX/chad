@@ -22,6 +22,7 @@ const PROVIDER_LABELS: Record<AiModelProvider, string> = {
   google: 'Google',
   cloudflare: 'Cloudflare Workers AI',
   ollama: 'Ollama',
+  openrouter: 'OpenRouter',
 }
 
 // Placeholder hinting at the shape of each provider's API token.
@@ -31,16 +32,26 @@ const API_TOKEN_PLACEHOLDERS: Record<AiModelProvider, string> = {
   google: 'AIza...',
   cloudflare: 'Cloudflare API token',
   ollama: '(optional)',
+  openrouter: 'sk-or-v1-...',
 }
 
-// Example used in the custom-model placeholders for providers that have no suggested models
-// (currently Ollama, which serves whatever the user has pulled locally).
-const FALLBACK_EXAMPLE_MODEL = { modelId: 'gemma4:31b', name: 'Gemma 4 31B' }
+// Examples used in the custom-model placeholders for providers that have no suggested models:
+// Ollama, which serves whatever the user has pulled locally, and OpenRouter, whose catalog is far
+// too large to list and whose ids are always `vendor/model`.
+const FALLBACK_EXAMPLE_MODELS: Partial<Record<AiModelProvider, { modelId: string, name: string }>> = {
+  ollama: { modelId: 'gemma4:31b', name: 'Gemma 4 31B' },
+  openrouter: { modelId: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
+}
+
+// Deliberately generic: a provider with neither suggested models nor an entry above is one nobody
+// has written an example for, and borrowing another provider's id would just mislead.
+const DEFAULT_EXAMPLE_MODEL = { modelId: 'model-id', name: 'Model name' }
 
 // Pick an example model to show in the custom-model placeholders for the given provider.
 function exampleModel(provider: AiModelProvider): { modelId: string, name: string } {
   const first = Object.entries(SUGGESTED_MODELS[provider])[0]
-  return first ? { modelId: first[0], name: first[1].name } : FALLBACK_EXAMPLE_MODEL
+  if (first) return { modelId: first[0], name: first[1].name }
+  return FALLBACK_EXAMPLE_MODELS[provider] ?? DEFAULT_EXAMPLE_MODEL
 }
 
 // Encode a selection into a string value for the Select component.

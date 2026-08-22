@@ -1152,7 +1152,8 @@ export type CloudflareAccountOption = {
 };
 
 /** Supported AI providers. */
-export type AiModelProvider = "openai" | "anthropic" | "google" | "cloudflare" | "ollama";
+export type AiModelProvider =
+    "openai" | "anthropic" | "google" | "cloudflare" | "ollama" | "openrouter";
 
 /** Information about the AI gateway configuration. Returned by `AuthenticatedApi.getAiConfig()`. */
 export type AiGatewayInfo = {
@@ -1227,6 +1228,12 @@ export const SUGGESTED_MODELS: Record<
     "gemini-3.6-flash": {name: "Gemini 3.6 Flash", contextWindow: 1048576},
   },
   "ollama": {
+  },
+  // Intentionally empty: pi's bundled OPENROUTER_MODELS catalog is authoritative for every
+  // OpenRouter model's window, cost and modalities, and modelTokenWindow() consults
+  // SUGGESTED_MODELS *before* that catalog -- so an entry here would silently shadow the correct
+  // value as soon as it went stale. The picker offers OpenRouter only as a free-form model id.
+  "openrouter": {
   },
 };
 

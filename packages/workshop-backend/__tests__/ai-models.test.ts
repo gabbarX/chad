@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AiChatAuthorInfo, AiModelConfig } from "@gadgets/workshop-shared/api";
-import { getModel, type ModelHandle } from "../src/ai-models.js";
+import { getModel, type ModelHandle, type ModelStreamOptions } from "../src/ai-models.js";
 
 // These tests exercise the real pi-ai stack: no module mocks. Routing decisions are asserted on
 // the returned handle's model descriptor (baseUrl/id/api) and log route, and request-level
@@ -55,10 +55,11 @@ const fetchStub = (async (input: RequestInfo | URL, init?: RequestInit) => {
 }) as typeof fetch;
 
 // Runs one request through the handle with the fetch stub and returns what was sent.
-async function captureRequest(handle: ModelHandle): Promise<CapturedRequest> {
+async function captureRequest(
+    handle: ModelHandle, options: Partial<ModelStreamOptions> = {}): Promise<CapturedRequest> {
   const stream = await handle.stream(handle.model, {
     messages: [{ role: "user", content: "hello", timestamp: 0 }],
-  }, { fetch: fetchStub, maxRetries: 0 });
+  }, { fetch: fetchStub, maxRetries: 0, ...options });
   const message = await stream.result();
   expect(message.stopReason).toBe("error");
   expect(capturedRequests.length).toBeGreaterThan(0);
@@ -499,6 +500,125 @@ describe("getModel direct routing (no gateway)", () => {
       }, INITIATOR);
       expect(handle.model.baseUrl).toBe("http://my-ollama:11434/v1");
     }
+  });
+});
+
+
+describe("getModel OpenRouter routing", () => {
+  // pi ships a generated OpenRouter catalog, so these ids resolve to real metadata rather than
+  // the synthesized fallbacks: claude-sonnet-4.5 reasons, jamba does not, and auto is unpriceable.
+  const REASONING_MODEL = "anthropic/claude-sonnet-4.5";
+  const NON_REASONING_MODEL = "ai21/jamba-large-1.7";
+
+  function openRouterConfig(overrides: Partial<AiModelConfig> = {}): AiModelConfig {
+    return { provider: "openrouter", model: REASONING_MODEL, apiToken: "sk-or-test", ...overrides };
+  }
+
+  function directHandle(overrides: Partial<AiModelConfig> = {}): ModelHandle {
+    return getModel(env({ CF_AI_GATEWAY: undefined }), openRouterConfig(overrides), INITIATOR);
+  }
+
+  beforeEach(() => {
+    capturedRequests.length = 0;
+  });
+
+  it("reaches OpenRouter directly with the config's own key", async () => {
+    const handle = directHandle();
+
+    expect(handle.model.api).toBe("openai-completions");
+    expect(handle.model.baseUrl).toBe("https://openrouter.ai/api/v1");
+    expect(handle.aiGatewayLogRoute).toBeUndefined();
+
+    const request = await captureRequest(handle);
+    expect(request.url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(request.headers.get("authorization")).toBe("Bearer sk-or-test");
+    expect(request.headers.get("cf-aig-metadata")).toBeNull();
+  }, 15000);
+
+  it("lets the config override the API URL", () => {
+    expect(directHandle({ apiUrl: "https://proxy.example/v1" }).model.baseUrl)
+        .toBe("https://proxy.example/v1");
+  });
+
+  it("resolves window and cost from pi's catalog rather than the fallbacks", () => {
+    // The fallbacks in modelTokenWindow() are 128_000/4096, so these values prove the catalog
+    // was consulted. SUGGESTED_MODELS.openrouter is intentionally empty and must not shadow it.
+    const handle = directHandle();
+    expect(handle.model.contextWindow).toBe(1_000_000);
+    expect(handle.model.maxTokens).toBe(64_000);
+    expect(handle.model.cost.input).toBe(3);
+  });
+
+  it("treats an unpriceable auto-router as free instead of negative", () => {
+    // openrouter/auto bills whatever model it picks, which pi records as a -1000000 sentinel.
+    // Passed through it would drive workspace totalCost -- and the balance guard -- negative.
+    const handle = directHandle({ model: "openrouter/auto" });
+    expect(handle.model.cost).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+  });
+
+  it("asks for reasoning explicitly, because pi would otherwise disable it", async () => {
+    // Given no effort, pi's openrouter thinking format sends `reasoning: {effort: "none"}`.
+    // Without the apiExtras branch every reasoning model would silently stop reasoning.
+    const body = JSON.parse((await captureRequest(directHandle())).body);
+    expect(body.reasoning).toEqual({ effort: "medium" });
+  }, 15000);
+
+  it("turns reasoning off when thinking is disabled", async () => {
+    const body = JSON.parse((await captureRequest(directHandle(), { thinking: false })).body);
+    expect(body.reasoning).toEqual({ effort: "none" });
+  }, 15000);
+
+  it("sends no reasoning field for a model that cannot reason", async () => {
+    const handle = directHandle({ model: NON_REASONING_MODEL });
+    const body = JSON.parse((await captureRequest(handle)).body);
+    expect(body.reasoning).toBeUndefined();
+  }, 15000);
+
+  it.each([
+    {
+      name: "Workers AI",
+      config: { ...WORKERS_AI_CONFIG, accountId: "user-account-id", apiToken: "user-token" },
+    },
+    {
+      name: "Ollama",
+      config: {
+        provider: "ollama", model: "qwen3:8b", apiToken: "", apiUrl: "http://my-ollama:11434",
+      },
+    },
+  ])("leaves $name reasoning untouched", async ({ config }) => {
+    // The reasoning branch keys on compat.thinkingFormat, not on the api: openai-completions is
+    // shared with Workers AI and Ollama, whose requests must not gain a reasoning field.
+    const handle = getModel(env({ CF_AI_GATEWAY: undefined }), config as AiModelConfig, INITIATOR);
+    const body = JSON.parse((await captureRequest(handle)).body);
+    expect(body.reasoning).toBeUndefined();
+    expect(body.reasoning_effort).toBeUndefined();
+  }, 15000);
+
+  it("speaks OpenRouter's own API on a connected user's Gateway", async () => {
+    const handle = getModel(env(), openRouterConfig(), INITIATOR, {
+      userGateway: { accountId: "user-account-id", apiKey: "user-token" },
+    });
+
+    expect(handle.model.api).toBe("openai-completions");
+    expect(handle.model.id).toBe(REASONING_MODEL);
+    expect(handle.model.baseUrl).toBe(
+        "https://gateway.ai.cloudflare.com/v1/user-account-id/default/openrouter");
+
+    const request = await captureRequest(handle);
+    expect(request.url).toBe(
+        "https://gateway.ai.cloudflare.com/v1/user-account-id/default/openrouter/chat/completions");
+    expect(request.headers.get("cf-aig-authorization")).toBe("Bearer user-token");
+    expect(request.headers.get("authorization")).toBeNull();
+    expect(request.headers.get("x-api-key")).toBeNull();
+
+    // Gateway routing must not cost the model its reasoning configuration.
+    expect(JSON.parse(request.body).reasoning).toEqual({ effort: "medium" });
+  }, 15000);
+
+  it("is unavailable in AI Gateway mode unless the operator enables it", () => {
+    // The platform gateway is operator-funded, so openrouter ships out of the default provider
+    // list; user.addModel() rejects a provider the gateway config does not name.
+    expect(env().CF_AI_GATEWAY_PROVIDERS).not.toContain("openrouter");
   });
 });
 
